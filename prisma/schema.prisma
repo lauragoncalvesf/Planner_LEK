@@ -1,0 +1,116 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  name                String
+  email               String   @unique
+  passwordHash        String
+  timezone            String   @default("America/Sao_Paulo")
+  onboardingCompleted Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  categories Category[]
+  tasks      Task[]
+  events     Event[]
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  color     String   @default("#3B82F6")
+  userId    String
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks  Task[]
+  events Event[]
+
+  @@unique([userId, name])
+}
+
+model Task {
+  id               String     @id @default(uuid())
+  title            String
+  description      String?
+  priority         Priority   @default(MEDIUM)
+  status           TaskStatus @default(PENDING)
+  dueAt            DateTime?
+  scheduledStartAt DateTime?
+  scheduledEndAt   DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  userId     String
+  categoryId String?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, dueAt])
+}
+
+model Event {
+  id              String         @id @default(uuid())
+  title           String
+  description     String?
+  startsAt        DateTime
+  endsAt          DateTime
+  allDay          Boolean        @default(false)
+  timezone        String         @default("America/Sao_Paulo")
+  recurrenceType  RecurrenceType @default(NONE)
+  weekDays        Int[]          @default([])
+  recurrenceUntil DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  userId     String
+  categoryId String?
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  exceptions EventException[]
+
+  @@index([userId, startsAt])
+}
+
+model EventException {
+  id               String   @id @default(uuid())
+  eventId          String
+  originalStartsAt DateTime
+  cancelled        Boolean  @default(false)
+  newStartsAt      DateTime?
+  newEndsAt        DateTime?
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, originalStartsAt])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RecurrenceType {
+  NONE
+  WEEKLY
+}
